@@ -1,0 +1,41 @@
+bugs
+--------------------------------------------------------------------------------
+
+- When user who logs out tries to log back in, the server thinks they are still logged in
+	-RESOLVED
+
+- client sends JOINP with wrong password, his fd is not listend for anymore.
+
+- same issue if client attempts to join a PUBLIC room using JOINP.
+
+- server shouldn't tell user who just connected that they conencted.
+	-Dont see that - assume resolved.
+
+- better error message for bad password creation
+
+- error code // 41   INVALID USER unused?
+
+- If user tries to login with account that doesn't eixst, should give error     line 513 server.c
+
+- remove print statements 
+	-"Is making new user? 0"
+
+- make sure password creation is good
+	-seems good
+
+TODO:
+-null terminate hash
+
+-seg fault when user disconnects
+
+
+when room name is many words, id is the second word, not the last number
+	e.g
+	my room 1
+		id of room
+	my 1
+		id of 1
+
+sometimes listrooms command crashes 
+
+when a bad password is entered to regiester user, client just hangs

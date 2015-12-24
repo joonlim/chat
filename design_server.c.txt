@@ -1,0 +1,566 @@
+--------------------------------------------------------------------------------
+$ ./server 4567 "Welcome to the cse320 chat server!"
+Currently listening on port 4567.
+--------------------------------------------------------------------------------
+		(SERVER) Usage:
+
+				Usage:
+				./server [-he] [-N num] PORT_NUMBER MOTD
+				-e            Echo messages received on server's stdout.
+				-h            Displays help menu & returns EXIT_SUCCESS.
+				-N num        Specifies maximum number of chat rooms allowed on server.
+				              Default = 5
+
+				PORT_NUMBER   Port number to listen on.
+				MOTD          Message to display to the client when they connect.
+
+--------------------------------------------------------------------------------
+/commands
+
+
+/createp <name> <password>	Send CREATEP to the server to create a private 
+							chatroom with a password.
+/creater <name>				Send CREATER followed by the desired name of the
+							room. 
+/help 						Print to the screen all user /commands which can be 
+							entered on the client.
+/join <id>					Send JOIN to the server to join a room.
+/joinp <id> <password>		Send JOINP to the client to join a private chatroom.
+/kick <name>				Send KICK to the server to kick a user.
+/leave						Send LEAVE to the server to leave room.
+/listrooms 					Send LISTR to the server to get list of room names 
+							and	ids. The list will be terminated by a double 
+							r\n\r\n.
+/listusers 					Send LISTU is to the server to get list of users in
+							the	room.
+/quit						Quit the chat client.
+/tell <name> <message>		Send TELL to the server to send a private message.
+--------------------------------------------------------------------------------
+verbs
+
+
+ALOHA! \r\n						client > server
+!AHOLA \r\n						server > client
+IAM <name> \r\n 				client > server
+ECHO <username> <message> \r\n	server > client
+BYE \r\n						client > server
+MSG <message> \r\n				client > server
+ERR <num> <message> \r\n		server > client
+CREATER <name> \r\n				client > server
+RETAERC <name> \r\n				client > server
+LISTR \r\n						client > server
+RTSIL <room1> <id1> <type1> \r\n <room2> <id2> type2> \r\n\r\n	server > client
+JOIN <id> \r\n					client > server
+NIOJ <id> \r\n					server > client
+LEAVE \r\n						client > server
+KICK <username> \r\n			client > server
+KCIK <username> \r\n			server > client
+KBYE \r\n						server > client
+TELL <name> <message> \r\n		client > server
+LLET <name> <message> \r\n		server > client
+ECHOP <sendername> <message> \r\n	server > client
+LISTU \r\n						client > server
+UTSIL <name1> \r\n<name2> \r\n<name3> \r\n\r\n
+CREATEP <name> <password> \r\n	client > server
+PETAERC <name> \r\n				server > client
+JOINP <id> <password> \r\n		client > server
+PNIOJ <id> \r\n					server > client
+IAMNEW <name> \r\n				client > server
+HINEW <name> \r\n				server > client
+NEWPASS <password> \r\n			client > server
+HI <name> \r\n					server > client
+AUTH <name> \r\n				server > client
+PASS <password> \r\n			client > server
+
+
+Error Code Table
+
+The following lists the error codes and associated messages.
+
+				ERR  Code Message
+				---  ------------
+				00   SORRY <name>
+				01   USER <name> EXISTS
+				02   <name> DOES NOT EXIST
+				10 	 ROOM EXISTS
+				11   MAXIMUM ROOMS REACHED
+				20   ROOM DOES NOT EXIST
+				30   USER NOT PRESENT
+				40   NOT OWNER
+				41   INVALID USER
+				60   INVALID OPERATION
+				61   INVALID PASSWORD
+
+The default error message for any other conditions which were not characterized should be:
+
+				ERR 100 INTERNAL SERVER ERROR
+
+--------------------------------------------------------------------------------
+
+Part 1 - Multi Client Echo Server
+- allow multiple users to connect to your single server, and any messages which get sent to the server get echoed back to all connected clients.
+
+	Server Threads
+
+		(SERVER) When a server is running, it will block to accept client connections.
+		
+		(SERVER) When a client connects to the server, the server should spawn a thread to handle the login protocol with the server. 
+
+		(SERVER) The Login thread will need to check the list of users on the server (shared resource between server threads)to see if the username is already in use. If the name is not in use, the login thread will then complete the protocol to log the user into the server.
+
+		(SERVER) On successful login of a client, the login thread will check the Echo flag. If the Echo flag is 0, this means the Echo thread must be started and flag set to 1. If the Echo flag is 1, the echo thread is already running and the login thread should be terminated. The login thread should spawn the Echo thread before terminating. This thread will echo all messages sent to the server back to the clients. It allows additional clients to connect to the server and attempt to login without blocking communication messages of connected clients.
+
+		(SERVER) The Echo thread should be terminated when all clients are disconnected (on last user to logout Echo thread sets Echo flag to 0 before termination). 
+
+		(SERVER) All ECHO communication between the client and server should be performed by the Echo server thread. 
+
+		(SERVER) You must create an Echo thread and shared Echo flag for use in HW#6. This is important! You must implement your server using this structure.
+
+		(SERVER) A shared data structure which will be accessed by multiple threads in your implementation is required.
+
+	I/O Multiplexing
+
+		(SERVER) You must use I/O multiplexing as we will need this for HW#6. The benefits of I/O multiplexing are that the program will be put into a suspended state while no activity is being performed on the fd’s, and when one of the fd’s is written to, it will alert your program that something happens, and you can then act on it. The other benefits to these techniques is that they work in a synchronous manner, but allow you to have behavior similar to doing things concurrently, without the overhead of spawning new threads, or starting new processes.
+
+		(SERVER) In your echo thread you should use I/O multiplexing on the set of file descriptors (fds) used to communicate with the clients.
+
+		(SERVER) I/O multiplexing is exposed via the following interfaces - select, poll, or epoll. They all have their pros and cons, but it is up to you to choose which technique you should use.
+
+	Pineapple IRC (PIRC) Protocol
+
+	Login to the server
+
+		(SERVER) When the server receives the verb, it should then respond with the verb !AHOLA. 
+
+		(CLIENT) Once the client receives !AHOLA the client will then respond back to the server by identifying who they are using the IAM verb.
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n # <name> is user's name
+				                        # Example: IAM cse320 \r\n
+
+		(SERVER) Now the server should validate the username. For part one all user names are unique. So if the user BOB try’s to connect to the server and there is already a user BOB connected, then the server should reject the connection attempt by sending the ERR verb with an associated error code and message. It should then send the BYE verb and terminate the connection.
+
+		(SERVER)  If the user name is currently not in use the server will send the HI verb confirming that the log in attempt was a success. It will then send an ECHO message to all connected clients alerting them that a new user has connected. After the user connects, the server will then ECHO the message of the day (aka MOTD , see server program command line arguments for details)to the newly connected client.
+
+		(SERVER) You must create a shared resource between your Echo thread and to maintain the list of user names. (HW6)
+
+		(SERVER) User names can be of any length and can contain any visible ascii characters. Spaces are not allowed!
+
+	Communicating after logging into the server
+
+		(SERVER) Once the client and server have established login, the client should be able to send and receive messages from other client users.
+
+		(SERVER) To send a message to everyone connected to the server (including yourself) we use the MSG verb to send a message. The client sends the message to the server, it is received and processed by the Echo thread.
+
+				C > S | MSG <message> \r\n # A message can be a max length of 1000 bytes
+				                           # So the max size of your buffer should be 1001
+				('\0')
+
+		(SERVER) On receipt, the Echo thread will then send an ECHO to all connected clients, containing the name of the user who sent the message and the message itself. Message length is 1000 bytes, any characters in excess of 1000 bytes should be truncated.
+
+		(SERVER) The echo thread will need to access the shared resource to find the username associated with the fd in which the message arrived from.
+
+				C < S | ECHO <username> <message> \r\n
+
+	Logging out of the server
+
+		(SERVER) The Echo server thread will respond back to the client by saying BYE. Then the Echo server thread willthen send an ECHO to all connected clients telling them that the user has disconnected.
+
+				C > S | BYE \r\n
+				C < S | BYE \r\n
+				# Server closes connection with the client
+				# Server now sends an ECHO to all connected clients
+				C < S | ECHO server <username> has disconnected. \r\n
+
+		(SERVER) The echo server thread should remove the user from the shared user list when the connection is terminated.
+
+		(SERVER) Remember when the last client is disconnect from the server (correctly or due to error), the echo thread should terminate. It will be recreated when a new client logs into the server.
+
+Client and Server Programs
+
+	Server
+
+		(SERVER) Usage:
+
+				Usage:
+				./server [-he] [-N num] PORT_NUMBER MOTD
+				-e            Echo messages received on server's stdout.
+				-h            Displays help menu & returns EXIT_SUCCESS.
+				-N num        Specifies maximum number of chat rooms allowed on server.
+				              Default = 5
+
+				PORT_NUMBER   Port number to listen on.
+				MOTD          Message to display to the client when they connect.
+
+		(SERVER) When the server is first started it should print out which port it is currently listening on.
+
+				$ ./server 4567 "Welcome to the cse320 chat server!"
+				Currently listening on port 4567.
+
+		(SERVER) You should set up a signal handler so that if ctrl-c is pressed, it should close the socket correctly. If you don’t close the socket correctly, you may have to wait for the OS to clean it up which sometimes happens instantly, and othertimes you have to wait 5 minutes.
+
+		(SERVER) If the server is started with the -e flag then all chat that is sent to the client(s) and all messages should also be displayed on the server.
+
+				$ ./server -e 4567 "Welcome to the cse320 chat server!"
+				Currently listening on port 4567.
+				server > user1 has connected.
+				server > user2 has connected.
+				user1 > Hello user2!
+				user2 > HI!, actually I need to leave :(
+				server > user2 has disconnected.
+
+Things to be aware of
+
+		(SERVER) You should look to handle:
+			EINTR
+			SIGPIPE / EPIPE
+			ICONNREFUSED
+			ECHILD
+			EINVL
+			etc
+		This is not an all inclusive list. You are responsible for handling alltypes of errors which can occur.
+
+		(SERVER) If the client gets disconnected for any error reason, the server should “clean up” the user. This means that at the minimum the user name should be removed from the current user list.
+
+		(SERVER) When you create your struct sockaddr_in, and you use the special ipaddress INADDR_ANY, this should handle the issue of multiple interfaces. In the event that you are having troubles, you may need to investigate multiple network devices attached to your machine.)
+
+		ifconfig
+
+It’s possible, depending on how you installed Linux that there may be multiple network interfaces to listen on. Depending on how your machine is setup, you may see things like eth0 or wlan0. If you installed on a VM, eth0 will most likely be present. If you installed it on your actual machine, you will most likely see wlan0, unless you are using your ethernet port. If you are using the wired port then you will see eth0 and wlan0. The device lo is also present on all machines, and this is the loopback device which is assigned to the ipv4 address 127.0.0.1.
+
+--------------------------------------------------------------------------------
+
+Part 2 - Chat Rooms and Private Chats
+- Support chat rooms and private chats (1 to 1 conversations).
+- Instead of joining a massive room upon logging into the server, you will be
+in a temporary waiting area where no one can communicate. 
+- Upon joining the waiting room, your server will then send a list of rooms which the server is currently hosting. 
+- It’s also possible that a client can start their own room, and broadcast it so that other users can connect to it.
+
+		(SERVER) You must still have a thread to manage the waiting room and the shared resources for the user list. Consider also other shared resources for tracking chat rooms and users in chat rooms.
+
+Waiting room
+
+		(CLIENT) After the initial login, users are now placed in the waiting room. In the waiting room users can
+			Create chat rooms
+			List the available chat rooms
+			Join a chat room
+			Log out of the server
+
+		(CLIENT) While in the waiting room, users can not send messages. Any message commands received by the server should be respond to with an error.
+
+				C > S | MSG <message> \r\n
+				C < S | ERR 60 <message> \r\n
+
+Creating chat rooms
+
+		(CLIENT) When the user of the client program issues the command /creater <name>, it will send a request with the verb CREATER followed by the desired name of the room. If the room can be created, then the server will respond with RETAERC <name>.
+
+		(SERVER) When the user of the client program issues the command /creater <name>, it will send a request with the verb CREATER followed by the desired name of the room. If the room can be created, then the server will respond with RETAERC <name>.
+
+		(SERVER) Each room will be assigned a numerical id, as well as keep its name.
+
+		(SERVER) After creating the room, the server will automatically join the user who created the room, into the room. This user is now the owner of the room. It will ECHO to all users in the waiting room that a new room has been added.
+
+		(SERVER) The server program will now take a new optional command line flag argument -N, which defines the maximum number of rooms which are allowed to be created at one time. The default value is 5 if theargument is not speficied. If the user tries to create a room with a name that already exists, the server will respond with ERR 10 <message>. If the N rooms currently exist, and a user attempts to create a new room, then the server willrespond with ERR 11 <message>.
+
+				# A successful request
+				C > S | CREATER <name> \r\n
+				C < S | RETAERC <name> \r\n
+				# Inform all user in waiting room
+				C < S | ECHO server New Chat room added.
+
+				# Failed request; Room with the same name
+				C > S | CREATER <name> \r\n
+				C < S | ERR 10 <message> \r\n
+
+				# Failed request; Maximum number of rooms exist
+				C > S | CREATER <name> \r\n
+				C < S | ERR 11 <message> \r\n
+
+		(SERVER) The response from the server for all successful commands will be the command issued spelled backwards.
+
+List chat rooms
+
+		(CLIENT) /listrooms command sends LISTR to the server.
+
+		(SERVER) The verb LISTR will be sent to the server, and the server willrespond with RTSIL followed by a list of room name and ids. The list will be terminated by a double \r\n\r\n
+
+				# A successful request; with rooms
+				C > S | LISTR \r\n
+				C < S | RTSIL <room1> <id1> \r\n <room2> <id2> \r\n <room3> <id3> \r\n\r\n
+
+				# A successful request; no existing rooms
+				C > S | LISTR \r\n
+				C < S | RTSIL no_rooms -1 \r\n\r\n
+
+				# Failed request; Not in waiting room
+				C > S | LISTR \r\n
+				C < S | ERR 60 <message> \r\n
+
+Join a chat room
+
+		(CLIENT) To join a preexisting room, the client user will issue the /join command with the room id number, which sends JOIN to the server.
+
+		(SERVER) The verb JOIN will be sent to the server with the id of the room. On success, the server will respond with NIOJ followed by the server informing all users in the room of the arrival of a new user.
+
+				# A successful request
+				C > S | JOIN <id> \r\n
+				C < S | NIOJ <id> \r\n
+				# Server echos to all clients in the room
+				C < S | ECHO server <username> has joined the room.
+
+				# Failed request; Room does not exist.
+				C > S | JOIN <id> \r\n
+				C < S | ERR 20 <message> \r\n
+
+				# Failed request; Already in a room
+				C > S | JOIN <id> \r\n
+				C < S | ERR 60 <message> \r\n
+
+Leave a chat room
+
+		(CLIENT) If the user issues the /leave command, it will send the verb LEAVE to the server.
+
+		(SERVER) If the user issues the /leave command, it will send the verb LEAVE to the server. If the user is currently in this room, it will respond with the verb EVAEL, and remove the user from the room. The user will return to the waiting room. The server willthen ECHO to all users in the room that the user has left.
+
+		(SERVER) If you leave and you are the owner of the room, you should pass the ownership of that room to another user. If there are no others users to pass ownership to, then the room is closed. 
+
+		(SERVER) If you try to /leave and you are not in a room, the server willrespond with ERR 30 <message>.
+
+				# A successful request
+				C > S | LEAVE \r\n
+				C < S | EVAEL \r\n
+				# Echo to all users in the room
+				C < S | ECHO server <username> has left the room.
+
+				# A successful request; no owner
+				C > S | LEAVE \r\n
+				C < S | EVAEL \r\n
+				# Echo to all users in the room
+				C < S | ECHO server <username> has left the room.
+				C < S | ECHO server <username> has been promoted to owner.
+
+				# Failed request; Client is not in a room.
+				C > S | LEAVE \r\n
+				C < S | ERR 30 <message> \r\n
+
+		(SERVER) If the user enters into the client the /quit command as defined in part 1, and the client is currently in a room, the server should remove this user from the room, echoing the user has left to all clients. Then the regular logout from Part I should be performed.
+
+Kick a User Out of a Room
+- The owner of a chat room has the ability to remove a user from a room. 
+
+		(CLIENT) The user can enter the /kick command in the client to kick a user from the chat room.
+
+				# A successful request
+				C > S | KICK <username> \r\n
+				C < S | KCIK <username> \r\n
+				# To client who was kicked out
+				C < S | KBYE
+				# Echo to all users in the room
+				C < S | ECHO server <username> has been kicked out.
+
+				# Failed request; not owner
+				C > S | KICK <username> \r\n
+				C < S | ERR 40 <message> \r\n
+				# Failed request; invalid username.
+
+				C > S | KICK <username> \r\n
+				C < S | ERR 41 <message> \r\n
+
+		(SERVER) When a client receives from the server the KBYE verb, it should print to the user terminal in informative blue color “You have been kicked out of the chat room”.
+
+		(CLIENT) When a client receives from the server the KBYE verb, it should print to the user terminal in informative blue color “You have been kicked out of the chat room”.
+
+Private Chats
+- Within a chat room only, we will add the ability to send user-to-user messages.
+
+		(CLIENT) If the user issues the /tell <name> <message> command in the client, it will send the TELL <name> <message> \r\n command to the server. The maximum length of the message is 1000 bytes. Any additional characters should be truncated. 
+
+		(SERVER) The server will then use the command ECHOP to the specific user (only if the user is in the room). We use ECHOP to denote that this mesage is a private mesage and should be colored accordingly.
+
+		(SERVER) No communication is allowed between users in the waiting room.
+
+				# A successful request
+				C > S | TELL <name> <message> \r\n
+				C < S | LLET <name> <message> \r\n
+				# Echo to user <name> the message
+				C < S | ECHOP <sendername> <message>
+
+				# Failed request; No user with name in room
+				C > S | TELL <name> <message> \r\n
+				C < S | ERR 30 <message> \r\n
+
+		(CLIENT) If the user issues the command /listusers the verb LISTU is sent to the server.
+
+		(SERVER) When the server receives the verb LISTU, The server returns the list of users in the room terminated with \r\n\r\n.
+
+				# A successful request
+				C > S | LISTU \r\n
+				C < S | UTSIL <name1> \r\n<name2> \r\n<name3> \r\n\r\n
+
+				# Failed request; Not in room
+				C > S | LISTU \r\n
+				C < S | ERR 60 <message> \r\n
+
+Client Help
+
+		(Client) To assist the user, the client will have the /help command which will print to the screen all user /commands which can be entered on the client.
+
+		(SERVER) To assist the user, the client will have the /help command which will print to the screen all user /commands which can be entered on the client.
+
+--------------------------------------------------------------------------------
+
+Part 3 - Adding Basic Security
+- we should employ techniques to help protect the users login information
+
+		(SERVER) You should store a 1-way crytographic hash of the password. When a user attempts to login, the password is sent over the network, and is hashed by the server. Then the server will compare the stored hashed value with the hash value it just generated. If they are the same then the user is authenticated. If it is not, then authentication fails.
+
+		(SERVER) To help defend against a cracked password compromising everyone else’s password, you should add what is called a salt to your user’s password before hashing it. This salt should be a value generated by a random function which is considered cryptographically secure.
+
+		(SERVER) Upon the creation of a new user you should generate the salt and store it in your authentication database. Then when you perform the hash, you should append the salt to the password before hashing. This will result in the same password being hashed differently for each user.
+
+		(SERVER) Use the hash function available in openssl/sha.h Install openssl and openssl-dev sudo apt-get install openssl openssl-dev
+
+		(SERVER) Use the rand to generate the salt.
+
+		(SERVER) Although not required for the assignment, you can still go one step further and do key streching to help defend against brute force attacks, by making the cracking process take more time.
+
+		(SERVER) You must use a shared resource, plaintext file or database (see extra credit) for storing the salt and hash per user. (HW6)
+
+Password Criteria
+
+		(SERVER) Passwords must meet the following criteria to be valid:
+			Must be at least 5 characters in length
+			Must contain at least 1 uppercase character
+			Must contain at least 1 symbol character
+			Must contain at least 1 number character
+
+User Authentification
+
+		(SERVER) In this case the protocol for logging into the server will additionally include user creation. We will introduce new verbs IAMNEW, HINEW, NEWPASS.
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAMNEW <name> \r\n
+				C < S | HINEW <name> \r\n
+				# Client prompts user for password
+				C > S | NEWPASS <password> \r\n
+				# On successful user creation
+				C < S | HI <name> \r\n
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAMNEW <name> \r\n
+				# User name does exist in the user list/database
+				# Reject the connection, and close.
+				C < S | ERR 01 SORRY <name> \r\n
+				C < S | BYE \r\n
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAMNEW <name> \r\n
+				C < S | HINEW <name> \r\n
+				# Client prompts user for password
+				C > S | NEWPASS <password> \r\n
+				# Failed request; Password not valid
+				C < S | ERR 61 <message> \r\n
+				C < S | BYE \r\n
+
+		(SERVER) Once a user account has been established with the server, on subsequent client connections the user must be validated.
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n
+				# User account exists
+				C < S | AUTH <name> \r\n
+				# Client prompts user for password
+				C > S | PASS <password> \r\n
+				# Successful request
+				C < S | HI <name> \r\n
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n
+				# User account exists
+				C < S | AUTH <name> \r\n
+				# Client prompts user for password
+				C > S | PASS <password> \r\n
+				# Failed request; Password not valid
+				C < S | ERR 61 <message> \r\n
+				C < S | BYE \r\n
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n
+				# User does not exist in the list of users
+				# Reject the connection, and close.
+				C < S | ERR 02 <message>\r\n
+				C < S | BYE \r\n
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n
+				# User already logged in with user name
+				# Reject the connection, and close.
+				C < S | ERR 00 SORRY <name> \r\n
+				C < S | BYE \r\n
+
+Private Chat Rooms
+
+		(CLIENT) Private chat rooms will be password protected. To create a private chat room the user will enter the command /createp <name> <password>.
+
+
+				# A successful request
+				C > S | CREATEP <name> <password> \r\n
+				# Server creates the room and adds user
+				C < S | PETAERC <name> \r\n
+				# Inform all user in waiting room
+				C < S | ECHO server New Private Chat room added.
+
+				# Failed request; User currently in a chat room
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 60 <message> \r\n
+
+				# Failed request; Chat room with name already exists
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 10 <message> \r\n
+
+				# Failed request; Password not valid
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 61 <message> \r\n
+
+				# Failed request; Maximum number of rooms exist
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 11 <message> \r\n
+
+
+		(CLIENT) The /listrooms command should display the private rooms in purple. Modify the LISTR verb to include a new field, type. Set type to 1 for public chat rooms and 2 for private chat rooms
+
+				# A successful request; with rooms
+				C > S | LISTR \r\n
+				C < S | RTSIL <room1> <id1> <type1> \r\n <room2> <id2> <type2> \r\n\r\n
+
+		(CLIENT) To join a private chat room, the user must know the password. The user can use the command /joinp <id> <password>
+
+				# A successful request
+				C > S | JOINP <id> <password> \r\n
+				C < S | PNIOJ <id> \r\n
+				# Server echos to all clients in the room
+				C < S | ECHO server <username> has joined the room.
+
+				# Failed request; Chat room does not exist
+				C > S | JOINP <id> <password> \r\n
+				C < S | ERR 20 <message> \r\n
+
+				# Failed request; Password is incorrect
+				C > S | JOINP <id> <password> \r\n
+				C < S | ERR 61 <message> \r\n
+
+
+** (10 pts) The PIRC protocol is currently insecure. For example, clients can spoof other users. Create user authenticated session ids to verify user’s identity.
+
+* (5 pts) Use sqlite3 to store the user information for authentication in Part III.
+
+

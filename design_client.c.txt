@@ -1,0 +1,329 @@
+--------------------------------------------------------------------------------
+$ ./client cse320 192.168.0.112 4567
+Welcome to the cse320 chat server!
+student > Hello, cse320!
+hello student :)
+cse320 > hello student :)
+--------------------------------------------------------------------------------
+		(CLIENT) Usage:
+
+				./client [-h] [-c] NAME SERVER_IP SERVER_PORT
+				-h           Displays this help menu, and returns EXIT_SUCCESS.
+				-c           Requests to server to create a new user
+
+				NAME         This is the username to display when chatting.
+				SERVER_IP    The ipaddress of the server to connect to.
+				SERVER_PORT  The port to connect to.
+
+
+	Informative   Errors      Private Messages   Default
+	\x1B[1;34m    \x1B[1;31m  \x1B[1;35m         \x1B[0m
+
+--------------------------------------------------------------------------------
+/commands
+
+
+/createp <name> <password>	Send CREATEP to the server to create a private 
+							chatroom with a password.
+/creater <name>				Send CREATER followed by the desired name of the
+							room. 
+/help 						Print to the screen all user /commands which can be 
+							entered on the client.
+/join <id>					Send JOIN to the server to join a room.
+/joinp <id> <password>		Send JOINP to the client to join a private chatroom.
+/kick <name>				Send KICK to the server to kick a user.
+/leave						Send LEAVE to the server to leave room.
+/listrooms 					Send LISTR to the server to get list of room names 
+							and	ids. The list will be terminated by a double 
+							r\n\r\n.
+/listusers 					Send LISTU is to the server to get list of users in
+							the	room.
+/quit						Quit the chat client.
+/tell <name> <message>		Send TELL to the server to send a private message.
+--------------------------------------------------------------------------------
+verbs
+
+
+ALOHA! \r\n						client > server
+!AHOLA \r\n						server > client
+IAM <name> \r\n 				client > server
+ECHO <username> <message> \r\n	server > client
+BYE \r\n						client > server
+MSG <message> \r\n				client > server
+ERR <num> <message> \r\n		server > client
+CREATER <name> \r\n				client > server
+RETAERC <name> \r\n				client > server
+LISTR \r\n						client > server
+RTSIL <room1> <id1> <type1> \r\n <room2> <id2> type2> \r\n\r\n	server > client
+JOIN <id> \r\n					client > server
+NIOJ <id> \r\n					server > client
+LEAVE \r\n						client > server
+KICK <username> \r\n			client > server
+KCIK <username> \r\n			server > client
+KBYE \r\n						server > client
+TELL <name> <message> \r\n		client > server
+LLET <name> <message> \r\n		server > client
+ECHOP <sendername> <message> \r\n	server > client
+LISTU \r\n						client > server
+UTSIL <name1> \r\n<name2> \r\n<name3> \r\n\r\n
+CREATEP <name> <password> \r\n	client > server
+PETAERC <name> \r\n				server > client
+JOINP <id> <password> \r\n		client > server
+PNIOJ <id> \r\n					server > client
+IAMNEW <name> \r\n				client > server
+HINEW <name> \r\n				server > client
+NEWPASS <password> \r\n			client > server
+HI <name> \r\n					server > client
+AUTH <name> \r\n				server > client
+PASS <password> \r\n			client > server
+
+
+Error Code Table
+
+The following lists the error codes and associated messages.
+
+				ERR  Code Message
+				---  ------------
+				00   SORRY <name>
+				01   USER <name> EXISTS
+				02   <name> DOES NOT EXIST
+				10 	 ROOM EXISTS
+				11   MAXIMUM ROOMS REACHED
+				20   ROOM DOES NOT EXIST
+				30   USERNOT PRESENT
+				40   NOT OWNER
+				41   INVALID USER
+				60   INVALID OPERATION
+				61   INVALID PASSWORD
+
+The default error message for any other conditions which were not characterized should be:
+
+				ERR 100 INTERNAL SERVER ERROR
+
+--------------------------------------------------------------------------------
+
+Perform I/O Multiplexing on both socket connection and stdin to display via std out.
+
+Response to !AHOLA verb by identifying who users are using IAM.
+
+User names can be of any length and can contain any visible ascii characters. Spaces are not allowed!
+
+--------------------------------------------------------------------------------
+Part 1 - Multi Client Echo Server
+
+- allow multiple users to connect to your single server, and any messages which get sent to the server get echoed back to all connected clients.
+
+	I/O Multiplexing
+
+		(CLIENT) In your client program, after establishing the connection you should perform I/O multiplexing on both the socket connection and stdin to display via std out.
+
+	Login to the server
+
+		(CLIENT) The client will initiate login with the server by sending the ALOHA! verb to the server.
+
+
+		(CLIENT) Once the client receives !AHOLA the client will then respond back to the server by identifying who they are using the IAM verb.
+
+				C > S | ALOHA! \r\n
+				C < S | !AHOLA \r\n
+				C > S | IAM <name> \r\n # <name> is user's name
+				                        # Example: IAM cse320 \r\n
+
+		(CLIENT) User names can be of any length and can contain any visible ascii characters. Spaces are not allowed!
+
+	Communicating after logging into the server
+
+		(CLIENT) Once the client and server have established login, the client should be able to send and receive messages from other client users.
+
+		(CLIENT) At some point the user will want to be able to log out of your server. To do that, the client will send the BYE verb to the server.
+
+
+Client and Server Programs
+
+
+		(CLIENT) The PIRC Protocol is the internal language used by the client and server for communication. The user will not be typing the VERB commands into the client program. The user will instead use / commands to instruct the client to invoke parts of the protocol.
+
+	Client
+
+		(CLIENT) Usage:
+
+				./client [-h] [-c] NAME SERVER_IP SERVER_PORT
+				-h           Displays this help menu, and returns EXIT_SUCCESS.
+				-c           Requests to server to create a new user
+
+				NAME         This is the username to display when chatting.
+				SERVER_IP    The ipaddress of the server to connect to.
+				SERVER_PORT  The port to connect to.
+
+		(CLIENT) To make things easier to read, you should use the following ansii escape codes to help color your messages on the screen.
+
+				Informative   Errors      Private Messages   Default
+				\x1B[1;34m    \x1B[1;31m  \x1B[1;35m         \x1B[0m
+
+		(CLIENT) The client should display all messages in the following format: username > message
+
+				$ ./client cse320 192.168.0.112 4567
+				Welcome to the cse320 chat server!
+				student > Hello, cse320!
+				hello student :)
+				cse320 > hello student :)
+
+		(CLIENT) The client should implement the command /quit . If the client program detects the command /quit, it should initiate the logging out procedure.
+
+				# Example output of two different connected users:
+
+				# user1 connects first
+				$ ./client user1 192.168.0.112 4567
+				Welcome to the cse320 chat server!
+				server > user2 has connected.
+				Hello user2!
+				user1 > Hello user2!
+				user2 > HI!, actually I need to leave :(
+				server > user2 has disconnected.
+
+				# user2 connects after user1
+				$ ./client user2 192.168.0.112 4567
+				Welcome to the cse320 chat server!
+				user1 > Hello user2!
+				HI!, actually I need to leave :(
+				user2 > HI!, actually I need to leave :(
+				/quit
+				Logging out..
+				$
+
+
+Waiting room
+
+		(CLIENT) After the initial login, users are now placed in the waiting room. In the waiting room users can
+			Create chat rooms
+			List the available chat rooms
+			Join a chat room
+			Log out of the server
+
+		(CLIENT) While in the waiting room, users can not send messages. Any message commands received by the server should be respond to with an error.
+
+				C > S | MSG <message> \r\n
+				C < S | ERR 60 <message> \r\n
+
+
+Creating chat rooms
+
+		(CLIENT) When the user of the client program issues the command /creater <name>, it will send a request with the verb CREATER followed by the desired name of the room. If the room can be created, then the server will respond with RETAERC <name>.
+
+
+List chat rooms
+
+		(CLIENT) /listrooms command sends LISTR to the server.
+
+
+
+Join a chat room
+
+		(CLIENT) To join a preexisting room, the client user will issue the /join command with the room id number, which sends JOIN to the server.
+
+
+
+Leave a chat room
+
+		(CLIENT) If the user issues the /leave command, it will send the verb LEAVE to the server.
+
+
+
+
+Kick a User Out of a Room
+- The owner of a chat room has the ability to remove a user from a room. 
+
+		(CLIENT) The user can enter the /kick command in the client to kick a user from the chat room.
+
+				# A successful request
+				C > S | KICK <username> \r\n
+				C < S | KCIK <username> \r\n
+				# To client who was kicked out
+				C < S | KBYE
+				# Echo to all users in the room
+				C < S | ECHO server <username> has been kicked out.
+
+				# Failed request; not owner
+				C > S | KICK <username> \r\n
+				C < S | ERR 40 <message> \r\n
+				# Failed request; invalid username.
+
+				C > S | KICK <username> \r\n
+				C < S | ERR 41 <message> \r\n
+
+
+
+		(CLIENT) When a client receives from the server the KBYE verb, it should print to the user terminal in informative blue color “You have been kicked out of the chat room”.
+
+
+
+Private Chats
+- Within a chat room only, we will add the ability to send user-to-user messages.
+
+		(CLIENT) If the user issues the /tell <name> <message> command in the client, it will send the TELL <name> <message> \r\n command to the server. The maximum length of the message is 1000 bytes. Any additional characters should be truncated. 
+
+
+		(CLIENT) If the user issues the command /listusers the verb LISTU is sent to the server.
+
+
+
+Client Help
+
+		(Client) To assist the user, the client will have the /help command which will print to the screen all user /commands which can be entered on the client.
+
+
+Private Chat Rooms
+
+		(CLIENT) Private chat rooms will be password protected. To create a private chat room the user will enter the command /createp <name> <password>.
+
+
+				# A successful request
+				C > S | CREATEP <name> <password> \r\n
+				# Server creates the room and adds user
+				C < S | PETAERC <name> \r\n
+				# Inform all user in waiting room
+				C < S | ECHO server New Private Chat room added.
+
+				# Failed request; User currently in a chat room
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 60 <message> \r\n
+
+				# Failed request; Chat room with name already exists
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 10 <message> \r\n
+
+				# Failed request; Password not valid
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 61 <message> \r\n
+
+				# Failed request; Maximum number of rooms exist
+				C > S | CREATEP <name> <password> \r\n
+				C < S | ERR 11 <message> \r\n
+
+
+		(CLIENT) The /listrooms command should display the private rooms in purple. Modify the LISTR verb to include a new field, type. Set type to 1 for public chat rooms and 2 for private chat rooms
+
+				# A successful request; with rooms
+				C > S | LISTR \r\n
+				C < S | RTSIL <room1> <id1> <type1> \r\n <room2> <id2> <type2> \r\n\r\n
+
+
+		(CLIENT) To join a private chat room, the user must know the password. The user can use the command /joinp <id> <password>
+
+				# A successful request
+				C > S | JOINP <id> <password> \r\n
+				C < S | PNIOJ <id> \r\n
+				# Server echos to all clients in the room
+				C < S | ECHO server <username> has joined the room.
+
+				# Failed request; Chat room does not exist
+				C > S | JOINP <id> <password> \r\n
+				C < S | ERR 20 <message> \r\n
+
+				# Failed request; Password is incorrect
+				C > S | JOINP <id> <password> \r\n
+				C < S | ERR 61 <message> \r\n
+
+
+
+**** (15-20 pts) Create a user interface for the client using ncurses or gtk+. Points allocated will depend on complexity of interface. Impress us, nothing trivial.
